@@ -1,3 +1,8 @@
+use std::{
+    sync::{Arc, Mutex},
+    thread::JoinHandle,
+};
+
 use cute::c;
 use rand::rngs::StdRng;
 
@@ -14,7 +19,7 @@ use super::{
 // create rejectability graph
 pub fn create_rejectability_graph(
     rng: StdRng,
-    dataset: &Dataset,
+    dataset: Dataset,
 ) -> (Graph, NamedValuesSetList, NamedValuesSetList) {
     // create a complete clause (accepts all posotive)
     let accept_all_positive = construct_attribute_sets(
@@ -34,8 +39,6 @@ pub fn create_rejectability_graph(
         reject_only_one_negative.push(one_neg_clause);
     }
 
-    // println!("complete clause {:?}", accept_all_positive);
-
     let mut graph = Graph::new(
         rng,
         dataset.learning_neg.len(),
@@ -43,71 +46,73 @@ pub fn create_rejectability_graph(
         dataset.learning_pos.clone(),
     );
 
-    // add an edge for every possible pair of negative examples
-    // println!("Start graph construction");
-    // println!(
-    //     "Number of edges to verify {}",
-    //     dataset.learning_neg.len() * (dataset.learning_neg.len() - 1) / 2
-    // );
-    // let mut edges_computed = 0;
+    let edges_mutex: Arc<Mutex<Vec<(usize, usize, NamedValuesSetList)>>> =
+        Arc::new(Mutex::new(vec![]));
+    let mut threads: Vec<JoinHandle<()>> = vec![];
+
     for i in 0..dataset.learning_neg.len() {
-        for j in i + 1..dataset.learning_neg.len() {
-            // get a list of sets with every selector of the two negative examples
-            let negative_pair_attrs = construct_attribute_sets(&dataset.learning_neg, &[i, j]);
-            // println!("negative pair attrs {}", negative_pair_attrs);
 
-            // clause is a list of sets containing every selector
-            // that is present in every positive element and
-            // not in the two negative elements
-            let mut clause: NamedValuesSetList =
-                c![NamedValuesSet::new(), for _i in 0..dataset.learning_pos[0].attributes.len()];
-
-            let mut exists_clause_for_all_positive = true;
-
-            // check every element in the positive dataset to see if theres a complete clause tha rejects the pair
-            for (positive_idx, positive) in dataset.learning_pos.iter().enumerate() {
-                let exists_clause_two_neg_on_pos =
-                    exists_clause_one_positive(positive, &negative_pair_attrs);
-
-                if !exists_clause_two_neg_on_pos {
-                    exists_clause_for_all_positive = false;
-                    break;
+        let ds = dataset.clone();
+        let edges_mutex = Arc::clone(&edges_mutex);
+        
+        let thread = std::thread::spawn(move || {
+            for j in i + 1..ds.learning_neg.len() {
+                let mut edges = edges_mutex.lock().unwrap();
+                let edge = find_edge_between(i, j, &ds);
+                if let Some(edge) = edge {
+                    edges.push((i, j, edge));
                 }
-
-                // find the clause that rejects the pair and accepts current positive element
-                let singular_clause_two_neg_one_pos = find_clause_one_positive(
-                    &dataset.learning_pos,
-                    positive_idx,
-                    &negative_pair_attrs,
-                );
-
-                // add to the clause, the new selectors for this positive element
-                clause = clause.union(&singular_clause_two_neg_one_pos);
-                // clause = update_clause(&clause, &singular_clause_two_neg_one_pos);
-
-                exists_clause_for_all_positive =
-                    exists_clause_for_all_positive && exists_clause_two_neg_on_pos;
             }
+        });
+        threads.push(thread);
+    }
+    for handle in threads {
+        handle.join().unwrap();
+    }
 
-            if exists_clause_for_all_positive {
-                graph.add_edge(i, j, &clause);
-                // println!(
-                //     "There's an edge between {} and {}, with clause {}",
-                //     i, j, clause
-                // );
-            }
-
-            // print progress
-            // edges_computed += 1;
-            // let quantile =
-            //     (dataset.learning_neg.len() * (dataset.learning_neg.len() - 1) / 2) / 100;
-            // if edges_computed % quantile == 0 {
-            //     println!("{}% done", edges_computed / quantile);
-            // }
-        }
+    let edges = edges_mutex.lock().unwrap();
+    for (i, j, edge) in edges.iter() {
+        graph.add_edge(*i, *j, edge);
     }
 
     (graph, accept_all_positive, accept_all_negative)
+}
+
+fn find_edge_between(i: usize, j: usize, dataset: &Dataset) -> Option<NamedValuesSetList> {
+    // get a list of sets with every selector of the two negative examples
+    let negative_pair_attrs = construct_attribute_sets(&dataset.learning_neg, &[i, j]);
+
+    let mut clause: NamedValuesSetList =
+        c![NamedValuesSet::new(), for _i in 0..dataset.learning_pos[0].attributes.len()];
+
+    let mut exists_clause_for_all_positive = true;
+
+    // check every element in the positive dataset to see if theres a complete clause tha rejects the pair
+    for (positive_idx, positive) in dataset.learning_pos.iter().enumerate() {
+        let exists_clause_two_neg_on_pos =
+            exists_clause_one_positive(positive, &negative_pair_attrs);
+
+        if !exists_clause_two_neg_on_pos {
+            exists_clause_for_all_positive = false;
+            break;
+        }
+
+        // find the clause that rejects the pair and accepts current positive element
+        let singular_clause_two_neg_one_pos =
+            find_clause_one_positive(&dataset.learning_pos, positive_idx, &negative_pair_attrs);
+
+        // add to the clause, the new selectors for this positive element
+        clause = clause.union(&singular_clause_two_neg_one_pos);
+
+        exists_clause_for_all_positive =
+            exists_clause_for_all_positive && exists_clause_two_neg_on_pos;
+    }
+
+    if exists_clause_for_all_positive {
+        return Some(clause);
+    } else {
+        return None;
+    }
 }
 
 pub fn exists_clause_one_positive(
@@ -168,6 +173,8 @@ pub fn construct_attribute_sets(dataset: &[Row], subset: &[usize]) -> NamedValue
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use ordered_float::OrderedFloat;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -218,7 +225,13 @@ mod tests {
     fn test_create_rejectability_graph() {
         let dataset = create_mock_data();
         let rng = StdRng::seed_from_u64(42);
-        let (graph, _, _) = super::create_rejectability_graph(rng, &dataset);
+        let (graph, _, _) = super::create_rejectability_graph(rng, dataset);
         assert_eq!(graph.n_vertex, 21);
+        assert_eq!(
+            graph.edge_dict[&0],
+            HashSet::<usize>::from_iter(vec![
+                1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 16, 17, 18, 19, 20
+            ])
+        );
     }
 }

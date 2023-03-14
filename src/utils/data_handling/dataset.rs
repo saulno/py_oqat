@@ -6,7 +6,7 @@ use crate::utils::data_handling::named_values_set::NamedValuesSet;
 
 use super::row::Row;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dataset {
     pub learning_pos: Vec<Row>,
     pub learning_neg: Vec<Row>,

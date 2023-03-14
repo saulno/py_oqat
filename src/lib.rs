@@ -2,7 +2,8 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{rngs::StdRng, SeedableRng};
 use utils::{
-    ant_colony_optimization::edge_ac::EdgeAC, data_handling::{dataset::Dataset, named_values_set_list::SetOperationsTrait},
+    ant_colony_optimization::edge_ac::EdgeAC,
+    data_handling::{dataset::Dataset, named_values_set_list::SetOperationsTrait},
     graph::rejectability::create_rejectability_graph,
 };
 
@@ -21,12 +22,17 @@ fn oqat_with_aco(
     column_names: Vec<String>,
     _column_types: Vec<String>,
     aco_config: ACOConfig,
-) -> PyResult<(Vec<Vec<(String, String, f64)>>, Vec<usize>, Vec<(String, Vec<f64>)>, Vec<(String, Vec<f64>)>)> {
+) -> PyResult<(
+    Vec<Vec<(String, String, f64)>>,
+    Vec<usize>,
+    Vec<(String, Vec<f64>)>,
+    Vec<(String, Vec<f64>)>,
+)> {
     let dataset = Dataset::from_data(x_train, y_train, column_names, OrderedFloat(learning_class));
 
     let rng = StdRng::seed_from_u64(42);
     let (graph, most_representative, least_representative) =
-        create_rejectability_graph(rng, &dataset);
+        create_rejectability_graph(rng, dataset);
 
     let rng = StdRng::seed_from_u64(42);
     let mut aco_parameters = ACOParameters {
@@ -85,7 +91,12 @@ fn oqat_with_aco(
         _ => vec![vec![]],
     };
 
-    Ok((model, clique_sizes, most_representative.to_export_format(), least_representative.to_export_format()))
+    Ok((
+        model,
+        clique_sizes,
+        most_representative.to_export_format(),
+        least_representative.to_export_format(),
+    ))
 }
 
 /// A Python module implemented in Rust.
