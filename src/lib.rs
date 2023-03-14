@@ -2,7 +2,7 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{rngs::StdRng, SeedableRng};
 use utils::{
-    ant_colony_optimization::edge_ac::EdgeAC, data_handling::dataset::Dataset,
+    ant_colony_optimization::edge_ac::EdgeAC, data_handling::{dataset::Dataset, named_values_set_list::SetOperationsTrait},
     graph::rejectability::create_rejectability_graph,
 };
 
@@ -21,16 +21,12 @@ fn oqat_with_aco(
     column_names: Vec<String>,
     _column_types: Vec<String>,
     aco_config: ACOConfig,
-) -> PyResult<Vec<Vec<(String, String, f64)>>> {
-    let dataset = Dataset::from_data(
-        x_train,
-        y_train,
-        column_names,
-        OrderedFloat(learning_class),
-    );
+) -> PyResult<(Vec<Vec<(String, String, f64)>>, Vec<usize>, Vec<(String, Vec<f64>)>, Vec<(String, Vec<f64>)>)> {
+    let dataset = Dataset::from_data(x_train, y_train, column_names, OrderedFloat(learning_class));
 
     let rng = StdRng::seed_from_u64(42);
-    let graph = create_rejectability_graph(rng, &dataset);
+    let (graph, most_representative, least_representative) =
+        create_rejectability_graph(rng, &dataset);
 
     let rng = StdRng::seed_from_u64(42);
     let mut aco_parameters = ACOParameters {
@@ -44,6 +40,7 @@ fn oqat_with_aco(
         tau_min: aco_config.tau_min,
     };
 
+    let mut clique_sizes: Vec<usize> = vec![];
     let model = match aco_config.algorithm.as_str() {
         "vertex-ac" => {
             let mut vertex_ac = VertexAC::new(&aco_parameters);
@@ -51,6 +48,7 @@ fn oqat_with_aco(
 
             while !aco_parameters.graph.available_vertex.is_empty() {
                 let best_clique = vertex_ac.aco_procedure(&mut aco_parameters);
+                clique_sizes.push(best_clique.len());
                 aco_parameters
                     .graph
                     .remove_vertex_set_from_available(&best_clique);
@@ -62,7 +60,7 @@ fn oqat_with_aco(
                 cnf.clauses.push(clause);
             }
 
-            cnf.to_simple_format()
+            cnf.to_export_format()
         }
         "edge-ac" => {
             let mut vertex_ac = EdgeAC::new(&aco_parameters);
@@ -70,6 +68,7 @@ fn oqat_with_aco(
 
             while !aco_parameters.graph.available_vertex.is_empty() {
                 let best_clique = vertex_ac.aco_procedure(&mut aco_parameters);
+                clique_sizes.push(best_clique.len());
                 aco_parameters
                     .graph
                     .remove_vertex_set_from_available(&best_clique);
@@ -81,12 +80,12 @@ fn oqat_with_aco(
                 cnf.clauses.push(clause);
             }
 
-            cnf.to_simple_format()
+            cnf.to_export_format()
         }
         _ => vec![vec![]],
     };
 
-    Ok(model)
+    Ok((model, clique_sizes, most_representative.to_export_format(), least_representative.to_export_format()))
 }
 
 /// A Python module implemented in Rust.

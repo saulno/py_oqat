@@ -12,12 +12,20 @@ use super::{
 };
 
 // create rejectability graph
-pub fn create_rejectability_graph(rng: StdRng, dataset: &Dataset) -> Graph {
+pub fn create_rejectability_graph(
+    rng: StdRng,
+    dataset: &Dataset,
+) -> (Graph, NamedValuesSetList, NamedValuesSetList) {
     // create a complete clause (accepts all posotive)
     let accept_all_positive = construct_attribute_sets(
         &dataset.learning_pos,
         &c![i, for i in 0..dataset.learning_pos.len()],
     );
+    let accept_all_negative = construct_attribute_sets(
+        &dataset.learning_neg,
+        &c![i, for i in 0..dataset.learning_neg.len()],
+    );
+
     // for every negative element, create a clause that rejects only that element
     let mut reject_only_one_negative: Vec<NamedValuesSetList> = vec![];
     for neg in &dataset.learning_neg {
@@ -99,7 +107,7 @@ pub fn create_rejectability_graph(rng: StdRng, dataset: &Dataset) -> Graph {
         }
     }
 
-    graph
+    (graph, accept_all_positive, accept_all_negative)
 }
 
 pub fn exists_clause_one_positive(
@@ -201,12 +209,7 @@ mod tests {
         ];
         let column_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
 
-        let dataset = Dataset::from_data(
-            x_train,
-            y_train,
-            column_names,
-            OrderedFloat(0.0),
-        );
+        let dataset = Dataset::from_data(x_train, y_train, column_names, OrderedFloat(0.0));
 
         dataset
     }
@@ -215,7 +218,7 @@ mod tests {
     fn test_create_rejectability_graph() {
         let dataset = create_mock_data();
         let rng = StdRng::seed_from_u64(42);
-        let graph = super::create_rejectability_graph(rng, &dataset);
+        let (graph, _, _) = super::create_rejectability_graph(rng, &dataset);
         assert_eq!(graph.n_vertex, 21);
     }
 }

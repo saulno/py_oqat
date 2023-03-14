@@ -7,8 +7,9 @@ use super::named_values_set::NamedValuesSet;
 pub type NamedValuesSetList = Vec<NamedValuesSet>;
 
 pub trait SetOperationsTrait {
-    fn new() -> NamedValuesSetList;
+    fn new() -> Self;
     fn is_empty(&self) -> bool;
+    fn to_export_format(&self) -> Vec<(String, Vec<f64>)>;
     fn union(&self, other: &NamedValuesSetList) -> NamedValuesSetList;
     fn intersection(&self, other: &NamedValuesSetList) -> NamedValuesSetList;
     fn difference(&self, other: &NamedValuesSetList) -> NamedValuesSetList;
@@ -21,6 +22,12 @@ impl SetOperationsTrait for NamedValuesSetList {
 
     fn is_empty(&self) -> bool {
         self.is_empty()
+    }
+
+    fn to_export_format(&self) -> Vec<(String, Vec<f64>)> {
+        self.iter()
+            .map(|x| x.to_export_format())
+            .collect::<Vec<(String, Vec<f64>)>>()
     }
 
     fn union(&self, other: &NamedValuesSetList) -> NamedValuesSetList {

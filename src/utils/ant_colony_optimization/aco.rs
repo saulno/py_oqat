@@ -112,7 +112,7 @@ pub trait ACO {
                         &k_clique,
                     );
                     let new_v_is_semantically_valid =
-                        self.candidate_is_semantically_valid(&p, &new_v, &k_clique);
+                        self.candidate_is_semantically_valid(p, &new_v, &k_clique);
                     if new_v_is_semantically_valid {
                         // println!("new_v: {}, current_clique: {:?}", new_v, &k_clique);
                         let new_v_candidates = p.graph.get_neighbor_candidates(new_v);

@@ -22,7 +22,14 @@ impl NamedValuesSet {
         }
     }
 
-    pub fn from_oirderd_float_vec(
+    pub fn to_export_format(&self) -> (String, Vec<f64>) {
+        (
+            self.column_name.clone(),
+            self.values.iter().map(|x| x.into_inner()).collect(),
+        )
+    }
+
+    pub fn from_ordered_float_vec(
         column_name: String,
         values: Vec<OrderedFloat<f64>>,
     ) -> NamedValuesSet {

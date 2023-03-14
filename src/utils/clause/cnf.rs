@@ -20,6 +20,12 @@ impl fmt::Display for Cnf {
     }
 }
 
+impl Default for Cnf {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cnf {
     pub fn new() -> Cnf {
         Cnf { clauses: vec![] }
@@ -34,7 +40,7 @@ impl Cnf {
         true
     }
 
-    pub fn to_simple_format(&self) -> Vec<Vec<(String, String, f64)>> {
+    pub fn to_export_format(&self) -> Vec<Vec<(String, String, f64)>> {
         let mut simple_format = Vec::new();
         for clause in &self.clauses {
             simple_format.push(clause.to_simple_format());

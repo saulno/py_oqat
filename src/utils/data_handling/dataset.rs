@@ -25,6 +25,12 @@ impl fmt::Display for Dataset {
     }
 }
 
+impl Default for Dataset {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Dataset {
     pub fn new() -> Dataset {
         Dataset {
@@ -39,7 +45,7 @@ impl Dataset {
         column_names: Vec<String>,
         learning_class: OrderedFloat<f64>,
     ) -> Dataset {
-        let learning_rows = Dataset::create_rows_list(x_train, y_train, column_names.clone());
+        let learning_rows = Dataset::create_rows_list(x_train, y_train, column_names);
 
         // Divide data into positive and negative elements
         let learning_pos: Vec<Row> = learning_rows
@@ -142,12 +148,7 @@ mod tests {
         let y_train = vec![1.0, 2.0];
         let column_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
 
-        let dataset = Dataset::from_data(
-            x_train,
-            y_train,
-            column_names,
-            OrderedFloat(1.0),
-        );
+        let dataset = Dataset::from_data(x_train, y_train, column_names, OrderedFloat(1.0));
         assert_eq!(dataset.learning_pos.len(), 1);
         assert_eq!(dataset.learning_neg.len(), 1);
         assert_eq!(dataset.learning_pos[0].class, OrderedFloat(1.0));

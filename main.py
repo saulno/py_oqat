@@ -8,6 +8,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn import tree
 from sklearn.metrics import confusion_matrix
 
+
+SEED = 42
+
 def pretty_print_confusion_matrix(confusion_matrix):
     for row in confusion_matrix:
         print(row)
@@ -39,7 +42,7 @@ y = preprocessing.LabelEncoder().fit_transform(y)
 
 
 # Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=SEED)
 
 # Selelct the entries that belong to the class 2
 x_2 = X_test[y_test == 2]

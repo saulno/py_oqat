@@ -33,10 +33,7 @@ impl DisjunctiveClause {
         let mut selectors = Vec::new();
         for named_values_set in named_values_set_list {
             for value in named_values_set.values.iter() {
-                selectors.push(Selector::Eq(
-                    named_values_set.column_name.clone(),
-                    *value.clone(),
-                ));
+                selectors.push(Selector::Eq(named_values_set.column_name.clone(), **value));
             }
         }
         DisjunctiveClause::new(selectors)
