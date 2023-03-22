@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::utils::data_handling::{named_values_set_list::NamedValuesSetList, row::Row};
+use crate::utils::data_handling::{named_values_collection::NamedValuesCollection, row::Row};
 
 use super::selector::Selector;
 
@@ -28,12 +28,12 @@ impl DisjunctiveClause {
     }
 
     pub fn from_named_values_set_list(
-        named_values_set_list: &NamedValuesSetList,
+        named_values_set_list: &NamedValuesCollection,
     ) -> DisjunctiveClause {
         let mut selectors = Vec::new();
-        for named_values_set in named_values_set_list {
-            for value in named_values_set.values.iter() {
-                selectors.push(Selector::Eq(named_values_set.column_name.clone(), **value));
+        for (col_name, (_data_type, values_set)) in named_values_set_list {
+            for value in values_set.iter() {
+                selectors.push(Selector::Eq(col_name.clone(), **value));
             }
         }
         DisjunctiveClause::new(selectors)

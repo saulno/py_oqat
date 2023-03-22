@@ -1,4 +1,3 @@
 pub mod dataset;
-pub mod named_values_set;
-pub mod named_values_set_list;
+pub mod named_values_collection;
 pub mod row;

@@ -2,7 +2,7 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{rngs::StdRng, SeedableRng};
 use utils::{
-    ant_colony_optimization::edge_ac::EdgeAC, data_handling::{dataset::Dataset, named_values_set_list::SetOperationsTrait},
+    ant_colony_optimization::edge_ac::EdgeAC, data_handling::dataset::Dataset,
     graph::rejectability::create_rejectability_graph,
 };
 
@@ -13,20 +13,31 @@ use crate::utils::{
 };
 pub mod utils;
 
+type OQATModel = Vec<Vec<(String, String, f64)>>;
+
 #[pyfunction]
 fn oqat_with_aco(
     x_train: Vec<Vec<f64>>,
     y_train: Vec<f64>,
     learning_class: f64,
     column_names: Vec<String>,
-    _column_types: Vec<String>,
+    column_data_types: Vec<String>,
     aco_config: ACOConfig,
-) -> PyResult<(Vec<Vec<(String, String, f64)>>, Vec<usize>, Vec<(String, Vec<f64>)>, Vec<(String, Vec<f64>)>)> {
-    let dataset = Dataset::from_data(x_train, y_train, column_names, OrderedFloat(learning_class));
+) -> PyResult<(OQATModel, Vec<usize>)> {
+    let dataset = Dataset::from_data(
+        x_train,
+        y_train,
+        column_names,
+        column_data_types,
+        OrderedFloat(learning_class),
+    );
 
     let rng = StdRng::seed_from_u64(42);
-    let (graph, most_representative, least_representative) =
+    let (graph, _most_representative, _least_representative) =
         create_rejectability_graph(rng, &dataset);
+
+    // println!("Dataset\n{}", dataset);
+    // println!("Graph\n{}", graph);
 
     let rng = StdRng::seed_from_u64(42);
     let mut aco_parameters = ACOParameters {
@@ -53,7 +64,7 @@ fn oqat_with_aco(
                     .graph
                     .remove_vertex_set_from_available(&best_clique);
 
-                let clause = aco_parameters.graph.get_clique_clause(best_clique);
+                let clause = aco_parameters.graph.get_clique_clause(&best_clique);
 
                 let clause = DisjunctiveClause::from_named_values_set_list(&clause);
 
@@ -73,7 +84,7 @@ fn oqat_with_aco(
                     .graph
                     .remove_vertex_set_from_available(&best_clique);
 
-                let clause = aco_parameters.graph.get_clique_clause(best_clique);
+                let clause = aco_parameters.graph.get_clique_clause(&best_clique);
 
                 let clause = DisjunctiveClause::from_named_values_set_list(&clause);
 
@@ -85,7 +96,7 @@ fn oqat_with_aco(
         _ => vec![vec![]],
     };
 
-    Ok((model, clique_sizes, most_representative.to_export_format(), least_representative.to_export_format()))
+    Ok((model, clique_sizes))
 }
 
 /// A Python module implemented in Rust.

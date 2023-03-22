@@ -2,7 +2,7 @@ use std::fmt;
 
 use ordered_float::OrderedFloat;
 
-use super::named_values_set_list::NamedValuesSetList;
+use super::named_values_collection::NamedValuesCollection;
 
 use pyo3::prelude::*;
 
@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 #[pyclass]
 pub struct Row {
     pub class: OrderedFloat<f64>,
-    pub attributes: NamedValuesSetList,
+    pub attributes: NamedValuesCollection,
 }
 
 impl fmt::Display for Row {

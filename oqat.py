@@ -42,7 +42,7 @@ class OQATClassifier():
         # for every learning class in y, create a model
         self.classes = sorted(set(y))
         for learning_class in self.classes:
-            model, weights, _, _ = self.oqat_function[self.heuristic](X_train, y_train, learning_class, column_names, column_types, self.heuristic_config)
+            model, weights = self.oqat_function[self.heuristic](X_train, y_train, learning_class, column_names, column_types, self.heuristic_config)
             model = OQATModel(model)
 
             self.model[learning_class] = {"oqat_model": model}

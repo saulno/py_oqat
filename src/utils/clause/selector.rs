@@ -51,9 +51,9 @@ impl Selector {
     }
 
     pub fn accepts_row(&self, row: &Row) -> bool {
-        for attr in &row.attributes {
-            if attr.column_name == self.get_column_name() {
-                for value in attr.values.iter() {
+        for (column_name, (_, attr)) in &row.attributes {
+            if column_name == &self.get_column_name() {
+                for value in attr.iter() {
                     if self.accepts_value(**value) {
                         return true;
                     }
