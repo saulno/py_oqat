@@ -14,6 +14,7 @@ pub struct Graph {
     pub adj_mtx: Vec<Vec<Edge>>,
     pub edge_dict: HashMap<usize, HashSet<usize>>,
     pub n_vertex: usize,
+    pub n_edges: usize,
     pub available_vertex: HashSet<usize>,
     pub reject_one_negative: Vec<NamedValuesSetList>,
     pub positive_dataset: Vec<Row>,
@@ -31,6 +32,7 @@ impl Graph {
             adj_mtx: vec![],
             edge_dict: HashMap::new(),
             n_vertex: 0,
+            n_edges: 0,
             available_vertex: HashSet::new(),
             reject_one_negative,
             positive_dataset,
@@ -54,6 +56,10 @@ impl Graph {
 
         self.edge_dict.get_mut(&u).unwrap().insert(v);
         self.edge_dict.get_mut(&v).unwrap().insert(u);
+
+        if clause_values.len() > 0 {
+            self.n_edges += 1;
+        }
     }
 
     pub fn is_edge(&self, vertex_1: usize, vertex_2: usize) -> bool {

@@ -219,7 +219,9 @@ mod tests {
         let dataset = create_mock_data();
         let rng = StdRng::seed_from_u64(42);
         let (graph, _, _) = super::create_rejectability_graph(rng, &dataset);
-        assert_eq!(graph.n_vertex, 21);assert_eq!(graph.edge_dict[&0].len(), 17);
+        assert_eq!(graph.n_vertex, 21);
+        assert_eq!(graph.n_edges, 174);
+        assert_eq!(graph.edge_dict[&0].len(), 17);
         assert_eq!(graph.edge_dict[&1].len(), 17);
         assert_eq!(graph.edge_dict[&2].len(), 20);
         assert_eq!(graph.adj_mtx[0][1].as_ref().unwrap().len(), 3);
