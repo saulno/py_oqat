@@ -78,7 +78,7 @@ impl Dataset {
         assert!(x.len() == y.len());
         let mut rows = Vec::new();
         for (idx, x_values) in x.iter().enumerate() {
-            let values: Vec<Vec<f64>> = x_values.iter().map(|x| vec![*x]).collect();
+            let values: Vec<Vec<f64>> = x_values.iter().map(|x| if *x > 0. { vec![*x] } else { vec![] }).collect();
             let row = Row {
                 class: OrderedFloat::from(y[idx]),
                 attributes: NamedValuesCollection::from_f64_vec(
@@ -141,6 +141,48 @@ mod tests {
         assert_eq!(c2.0, "cat");
         assert_eq!(c2.1.len(), 1);
         assert!(c2.1.contains(&OrderedFloat(6.0)));
+    }
+
+    #[test]
+    fn test_create_rows_list_with_missing_values() {
+        let x = vec![vec![1.0, -1., 3.0], vec![4.0, -1., -1.]];
+        let y = vec![1.0, 2.0];
+        let column_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let column_data_types = vec!["num".to_string(), "num".to_string(), "cat".to_string()];
+        let rows = Dataset::create_rows_list(x, y, column_names, column_data_types);
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].class, OrderedFloat(1.0));
+        assert_eq!(rows[1].class, OrderedFloat(2.0));
+        assert_eq!(rows[0].attributes.len(), 3);
+        assert_eq!(rows[1].attributes.len(), 3);
+
+        let a1 = rows[0].attributes.get("a").unwrap();
+        assert_eq!(a1.0, "num");
+        assert_eq!(a1.1.len(), 1);
+        assert!(a1.1.contains(&OrderedFloat(1.0)));
+
+        let b1 = rows[0].attributes.get("b").unwrap();
+        assert_eq!(b1.0, "num");
+        assert_eq!(b1.1.len(), 0);
+
+        let c1 = rows[0].attributes.get("c").unwrap();
+        assert_eq!(c1.0, "cat");
+        assert_eq!(c1.1.len(), 1);
+        assert!(c1.1.contains(&OrderedFloat(3.0)));
+
+        let a2 = rows[1].attributes.get("a").unwrap();
+        assert_eq!(a2.0, "num");
+        assert_eq!(a2.1.len(), 1);
+        assert!(a2.1.contains(&OrderedFloat(4.0)));
+
+        let b2 = rows[1].attributes.get("b").unwrap();
+        assert_eq!(b2.0, "num");
+        assert_eq!(b2.1.len(), 0);
+
+        let c2 = rows[1].attributes.get("c").unwrap();
+        assert_eq!(c2.0, "cat");
+        assert_eq!(c2.1.len(), 0);
     }
 
     #[test]

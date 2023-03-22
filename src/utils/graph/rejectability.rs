@@ -46,7 +46,6 @@ pub fn create_rejectability_graph(
         for j in i + 1..dataset.learning_neg.len() {
             // get a list of sets with every selector of the two negative examples
             let negative_pair_attrs = construct_attribute_sets(&dataset.learning_neg, &[i, j]);
-            // println!("negative pair attrs {}", negative_pair_attrs);
 
             // clause is a list of sets containing every selector
             // that is present in every positive element and
