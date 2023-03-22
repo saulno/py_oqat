@@ -178,7 +178,7 @@ mod tests {
             vec![0.0, 2.0, 0.0],
             vec![0.0, 2.0, 1.0],
             vec![0.0, 2.0, 2.0],
-            vec![0.0, 1.0, 0.0],
+            vec![0.0, g
             vec![0.0, 1.0, 1.0],
             vec![0.0, 1.0, 2.0],
             vec![0.0, 0.0, 0.0],
@@ -219,6 +219,82 @@ mod tests {
         let dataset = create_mock_data();
         let rng = StdRng::seed_from_u64(42);
         let (graph, _, _) = super::create_rejectability_graph(rng, &dataset);
-        assert_eq!(graph.n_vertex, 21);
+        assert_eq!(graph.n_vertex, 21);assert_eq!(graph.edge_dict[&0].len(), 17);
+        assert_eq!(graph.edge_dict[&1].len(), 17);
+        assert_eq!(graph.edge_dict[&2].len(), 20);
+        assert_eq!(graph.adj_mtx[0][1].as_ref().unwrap().len(), 3);
+        // assert_eq!(graph.adj_mtx[0][1], None);
+    }
+
+    #[test]
+    fn test_exist_clause_one_positive() {
+        let dataset = create_mock_data();
+
+        let positive_idx = 0;
+        let (neg_1, neg_2) = (0, 1);
+        let negative_pair_attrs =
+        super::construct_attribute_sets(&dataset.learning_neg, &[neg_1, neg_2]);
+        let exists_clause = super::exists_clause_one_positive(
+            &dataset.learning_pos[positive_idx],
+            &negative_pair_attrs,
+        );
+        
+        assert!(exists_clause);
+
+        let (neg_1, neg_2) = (0, 9);
+        let negative_pair_attrs =
+            super::construct_attribute_sets(&dataset.learning_neg, &[neg_1, neg_2]);
+        let exists_clause = super::exists_clause_one_positive(
+            &dataset.learning_pos[positive_idx],
+            &negative_pair_attrs,
+        );
+
+        assert!(!exists_clause);
+    }
+
+    #[test]
+    fn test_find_clause_one_positive() {
+        let dataset = create_mock_data();
+
+        let positive_idx = 0;
+        let (neg_1, neg_2) = (0, 1);
+        let negative_pair_attrs =
+            super::construct_attribute_sets(&dataset.learning_neg, &[neg_1, neg_2]);
+        let clause = super::find_clause_one_positive(
+            &dataset.learning_pos,
+            positive_idx,
+            &negative_pair_attrs,
+        );
+
+        assert_eq!(clause.len(), 3);
+        let a = &clause[0];
+        assert_eq!(a.values.len(), 1);
+        assert!(a.values.contains(&OrderedFloat(1.0)));
+        let b = &clause[1];
+        assert_eq!(b.values.len(), 0);
+        let c = &clause[2];
+        assert_eq!(c.values.len(), 0);
+    }
+
+    #[test]
+    fn test_construct_attribute_sets() {
+        let dataset = create_mock_data();
+        let subset = vec![0, 1];
+
+        let values = super::construct_attribute_sets(&dataset.learning_neg, &subset);
+
+        assert_eq!(values.len(), 3);
+        let a = &values[0];
+        assert_eq!(a.values.len(), 1);
+        assert!(a.values.contains(&OrderedFloat(0.0)));
+
+        let b = &values[1];
+        assert_eq!(b.values.len(), 1);
+        assert!(b.values.contains(&OrderedFloat(2.0)));
+
+        let c = &values[2];
+        assert_eq!(c.values.len(), 2);
+        assert!(c.values.contains(&OrderedFloat(0.0)));
+        assert!(c.values.contains(&OrderedFloat(1.0)));
     }
 }

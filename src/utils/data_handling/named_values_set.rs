@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt};
 
 use ordered_float::OrderedFloat;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NamedValuesSet {
     pub column_name: String,
     pub values: HashSet<OrderedFloat<f64>>,
