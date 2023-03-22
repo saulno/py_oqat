@@ -9,15 +9,20 @@ from simple_oqat import oqat_with_aco
 
 
 class OQATClassifier():
-    def __init__(self, collision_strategy: str, heuristic: str, heuristic_config: Config):
+    def __init__(self, collision_strategy: str, null_strategy: str, heuristic: str, heuristic_config: Config):
         self.collision_strategy = collision_strategy
+        self.null_strategy = null_strategy
+
         self.heuristic = heuristic
         self.heuristic_config = heuristic_config
+
         self.model= {}
         self.oqat_function = {
             "aco": oqat_with_aco
         }
+
         self.classes = []
+        self.X_train, y_train = None, None
 
     def model_from_json(self, json):
         for learning_class, model in json.items():
@@ -32,6 +37,7 @@ class OQATClassifier():
     def fit(self, X: list[list[float]], y: list[bool], column_names: list[str], column_types: list[str]):
         # Create a subset for validating the quality of the model
         X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+        self.X_train, self.y_train = X_train, y_train
 
         # for every learning class in y, create a model
         self.classes = sorted(set(y))
@@ -59,38 +65,51 @@ class OQATClassifier():
                 if y_pred[i]:
                     predictions[i].add(learning_class)
         
-        default_class = -1
         final_predictions = [None for _ in range(len(predictions))]
-        if self.collision_strategy == "random":
-            for i in range(len(predictions)):
-                if len(predictions[i]) > 0:
-                    final_predictions[i] = random.sample(sorted(predictions[i]), 1)[0]
+
+        default_class = -1
+        for i in range(len(predictions)):
+            if len(predictions[i]) == 0:
+                if self.null_strategy == "weighted":
+                    weighted_classes = {l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights"]) for l_class in self.classes}
+                    final_predictions[i] = max(self.classes, key=lambda l_class: weighted_classes[l_class])
+                elif self.null_strategy == "weighted_normalized":
+                    weighted_classes = {l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights_norm"]) for l_class in self.classes}
+                    final_predictions[i] = max(self.classes, key=lambda l_class: weighted_classes[l_class])
+                elif self.null_strategy == "dissimilarity":
+                    final_predictions[i] = min(self.classes, key=lambda l_class: self.dissimilarity_vec(X[i], self.X_train[self.y_train == l_class]))
                 else:
                     final_predictions[i] = default_class
-        elif self.collision_strategy == "best_score":
-            for i in range(len(predictions)):
-                if len(predictions[i]) > 0:
+            elif len(predictions[i]) > 1:
+                if self.collision_strategy == "best_score":
                     final_predictions[i] = max(predictions[i], key=lambda l_class: self.model[l_class]["score"])
+                elif self.collision_strategy == "dissimilarity":
+                    final_predictions[i] = min(predictions[i], key=lambda l_class: self.dissimilarity_vec(X[i], self.X_train[self.y_train == l_class]))
                 else:
-                    final_predictions[i] = default_class
-        elif self.collision_strategy == "weighted":
-            weigthed_classes = [{l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights"]) for l_class in self.classes} for i in range(len(predictions))]
-            for i in range(len(predictions)):
-                available_options = predictions[i] if len(predictions[i]) > 0 else self.classes
-                final_predictions[i] = max(available_options, key=lambda l_class: weigthed_classes[i][l_class])
-        elif self.collision_strategy == "weights":
-            final_predictions = [{l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights"]) for l_class in self.classes} for i in range(len(predictions))] 
-        elif self.collision_strategy == "weighted_norm":
-            weigthed_classes = [{l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights_norm"]) for l_class in self.classes} for i in range(len(predictions))]
-            for i in range(len(predictions)):
-                available_options = predictions[i] if len(predictions[i]) > 0 else self.classes
-                final_predictions[i] = max(available_options, key=lambda l_class: weigthed_classes[i][l_class])
-        elif self.collision_strategy == "weights_norm":
-            final_predictions = [{l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights_norm"]) for l_class in self.classes} for i in range(len(predictions))] 
-        else:
-            return predictions
+                    final_predictions[i] = list(predictions[i])
+            else:
+                final_predictions[i] = list(predictions[i])[0]
+
+        # if self.collision_strategy == "weights":
+        #     final_predictions = [{l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights"]) for l_class in self.classes} for i in range(len(predictions))] 
+        # elif self.collision_strategy == "weights_norm":
+        #     final_predictions = [{l_class: self.model[l_class]["oqat_model"].precision_predict(X[i:i+1], column_names, self.model[l_class]["cnf_weights_norm"]) for l_class in self.classes} for i in range(len(predictions))] 
+        
         
         return final_predictions
+
+    def dissimilarity(self, x1: list[float], x2:list[float]) -> float:
+        """
+        Calculates the disimilarity between two vectors.
+        0 means that the vectors are equal. 1 means that the vectors are completely different.
+        """
+        return sum([1 if x1[i] != x2[i] else 0 for i in range(len(x1))]) / len(x1)
+    
+    def dissimilarity_vec(self, x1: list[float], X: list[list[float]]) -> float:
+        """
+        Calculates the disimilarity between a vector and a matrix (set of vectors).
+        """
+        return sum([self.dissimilarity(x1, x2) for x2 in X]) / len(X)
     
     def confusion_matrix(self, y_pred: list[float], y_test: list[float]) -> float:
         confusion_matrix = [[0 for _ in range(len(self.classes))] for _ in range(len(self.classes))]

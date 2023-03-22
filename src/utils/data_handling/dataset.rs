@@ -74,13 +74,16 @@ impl Dataset {
                 attributes: Vec::new(),
             };
             for (idx, x_value) in x_values.iter().enumerate() {
-                let mut values = HashSet::new();
-                values.insert(OrderedFloat(*x_value));
-                let named_values_set = NamedValuesSet {
-                    column_name: column_names[idx].clone(),
-                    values,
-                };
-                row.attributes.push(named_values_set);
+                // Ignore missing values (represented as -1.0)
+                // if *x_value >= 0.0 {
+                    let mut values = HashSet::new();
+                    values.insert(OrderedFloat(*x_value));
+                    let named_values_set = NamedValuesSet {
+                        column_name: column_names[idx].clone(),
+                        values,
+                    };
+                    row.attributes.push(named_values_set);
+                // }
             }
             rows.push(row);
         }
