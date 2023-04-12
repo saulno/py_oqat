@@ -34,9 +34,9 @@ class OQATClassifier():
             self.classes.append(lc)
 
 
-    def fit(self, X: list[list[float]], y: list[bool], column_names: list[str], column_types: list[str]):
+    def fit(self, X: list[list[float]], y: list[bool], column_names: list[str], column_types: list[str], validation_split: float = 0.3, random_state: int = 42):
         # Create a subset for validating the quality of the model
-        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=validation_split, random_state=random_state)
         self.X_train, self.y_train = X_train, y_train
 
         # for every learning class in y, create a model
@@ -97,6 +97,10 @@ class OQATClassifier():
         
         
         return final_predictions
+    
+    def minimize_model(self):
+        for _learning_class, model in self.model.items():
+            model["oqat_model"].minimize_model()
 
     def dissimilarity(self, x1: list[float], x2:list[float]) -> float:
         """
@@ -138,6 +142,10 @@ class OQATModel():
     def precision_predict(self, X: list[list[float]], column_names: list[str], cnf_weights: list[int]) -> list[float]:
         return self.model.precision_predict(X, column_names, cnf_weights)
     
+    def minimize_model(self):
+        self.model.minimize_model()
+        return self
+
     def __repr__(self):
         return str(self.model)
 
@@ -217,6 +225,23 @@ class ConjunctiveClause(Clause):
         for clause_idx in range(len(self.clauses)):
             sum += cnf_weights[clause_idx] * self.clauses[clause_idx].fast_predict(X, column_names)
         return sum
+    
+    def minimize(self, weights):
+        if len(self.clauses) == 1:
+            return self.clauses[0]
+        else:
+            for i in range(len(self.clauses)):
+                for j in range(i+1, len(self.clauses)):
+                    c1, c2 = self.clauses[i], self.clauses[j]
+                    # check if c1 is subset of c2
+                    if all([e in c2.clauses for e in c1.clauses]):
+                        del self.clauses[j]
+                        weights[i] += weights[j]
+                        del weights[j]
+                    elif all([e in c1.clauses for e in c2.clauses]):
+                        del self.clauses[i]
+                        weights[j] += weights[i]
+                        del weights[i]
 
     def __repr__(self):
         return f"({' ∧ '.join([str(clause) for clause in self.clauses])})"
