@@ -145,7 +145,10 @@ mod tests {
     use ordered_float::OrderedFloat;
     use rand::{rngs::StdRng, SeedableRng};
 
-    use crate::utils::data_handling::{dataset::Dataset, named_values_collection::{NamedValuesCollection, SetOperationsTrait}};
+    use crate::utils::data_handling::{
+        dataset::Dataset,
+        named_values_collection::{NamedValuesCollection, SetOperationsTrait},
+    };
 
     fn create_mock_data() -> Dataset {
         let x_train = vec![
@@ -229,12 +232,12 @@ mod tests {
         let positive_idx = 0;
         let (neg_1, neg_2) = (0, 1);
         let negative_pair_attrs: NamedValuesCollection =
-        super::construct_attribute_sets(&dataset.learning_neg, &[neg_1, neg_2]);
+            super::construct_attribute_sets(&dataset.learning_neg, &[neg_1, neg_2]);
         let exists_clause = super::exists_clause_one_positive(
             &dataset.learning_pos[positive_idx],
             &negative_pair_attrs,
         );
-        
+
         assert!(exists_clause);
 
         let (neg_1, neg_2) = (0, 9);
@@ -308,7 +311,7 @@ mod tests {
 
         let negative_pair_attrs: NamedValuesCollection =
             super::construct_attribute_sets(&dataset.learning_neg, &[neg_1, neg_2]);
-        
+
         let mut clause = NamedValuesCollection::new();
 
         let mut exists_clause_for_all_positive = true;

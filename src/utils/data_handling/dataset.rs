@@ -78,7 +78,10 @@ impl Dataset {
         assert!(x.len() == y.len());
         let mut rows = Vec::new();
         for (idx, x_values) in x.iter().enumerate() {
-            let values: Vec<Vec<f64>> = x_values.iter().map(|x| if *x > 0. { vec![*x] } else { vec![] }).collect();
+            let values: Vec<Vec<f64>> = x_values
+                .iter()
+                .map(|x| if *x >= 0. { vec![*x] } else { vec![] })
+                .collect();
             let row = Row {
                 class: OrderedFloat::from(y[idx]),
                 attributes: NamedValuesCollection::from_f64_vec(

@@ -55,4 +55,70 @@ impl DisjunctiveClause {
         }
         simple_format
     }
+
+    pub fn equals(&self, other: &DisjunctiveClause) -> bool {
+        if self.selectors.len() != other.selectors.len() {
+            return false;
+        }
+        for selector in &self.selectors {
+            if !other.selectors.contains(selector) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{DisjunctiveClause, Selector};
+
+    #[test]
+    fn test_disjunctive_clause_equals_1() {
+        let clause_1 = DisjunctiveClause::new(vec![
+            Selector::Eq("a".to_string(), 1.0),
+            Selector::Eq("b".to_string(), 2.0),
+            Selector::Eq("c".to_string(), 3.0),
+        ]);
+        let clause_2 = DisjunctiveClause::new(vec![
+            Selector::Eq("a".to_string(), 1.0),
+            Selector::Eq("b".to_string(), 2.0),
+            Selector::Eq("c".to_string(), 3.0),
+        ]);
+
+        assert!(clause_1.equals(&clause_2));
+    }
+
+    #[test]
+    fn test_disjunctive_clause_equals_2() {
+        let clause_1 = DisjunctiveClause::new(vec![
+            Selector::Eq("a".to_string(), 1.0),
+            Selector::Eq("b".to_string(), 2.0),
+            Selector::Eq("c".to_string(), 3.0),
+        ]);
+        let clause_2 = DisjunctiveClause::new(vec![
+            Selector::Eq("a".to_string(), 1.0),
+            Selector::Eq("b".to_string(), 2.0),
+            Selector::Eq("c".to_string(), 3.0),
+            Selector::Eq("d".to_string(), 4.0),
+        ]);
+
+        assert!(!clause_1.equals(&clause_2));
+    }
+
+    #[test]
+    fn test_disjunctive_clause_equals_3() {
+        let clause_1 = DisjunctiveClause::new(vec![
+            Selector::Eq("a".to_string(), 1.0),
+            Selector::Eq("b".to_string(), 2.0),
+            Selector::Eq("c".to_string(), 3.0),
+        ]);
+        let clause_2 = DisjunctiveClause::new(vec![
+            Selector::Eq("c".to_string(), 3.0),
+            Selector::Eq("a".to_string(), 1.0),
+            Selector::Eq("b".to_string(), 2.0),
+        ]);
+
+        assert!(clause_1.equals(&clause_2));
+    }
 }

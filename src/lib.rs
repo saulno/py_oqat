@@ -51,24 +51,22 @@ fn oqat_with_aco(
         tau_min: aco_config.tau_min,
     };
 
-    let mut clique_sizes: Vec<usize> = vec![];
-    let model = match aco_config.algorithm.as_str() {
+    let (model, clique_sizes) = match aco_config.algorithm.as_str() {
         "vertex-ac" => {
             let mut vertex_ac = VertexAC::new(&aco_parameters);
             let mut cnf = Cnf::new();
 
             while !aco_parameters.graph.available_vertex.is_empty() {
                 let best_clique = vertex_ac.aco_procedure(&mut aco_parameters);
-                clique_sizes.push(best_clique.len());
                 aco_parameters
                     .graph
                     .remove_vertex_set_from_available(&best_clique);
 
                 let clause = aco_parameters.graph.get_clique_clause(&best_clique);
-
                 let clause = DisjunctiveClause::from_named_values_set_list(&clause);
 
-                cnf.clauses.push(clause);
+                let weight = best_clique.len();
+                cnf.push_clause(clause, weight);
             }
 
             cnf.to_export_format()
@@ -79,21 +77,20 @@ fn oqat_with_aco(
 
             while !aco_parameters.graph.available_vertex.is_empty() {
                 let best_clique = vertex_ac.aco_procedure(&mut aco_parameters);
-                clique_sizes.push(best_clique.len());
                 aco_parameters
                     .graph
                     .remove_vertex_set_from_available(&best_clique);
 
                 let clause = aco_parameters.graph.get_clique_clause(&best_clique);
-
                 let clause = DisjunctiveClause::from_named_values_set_list(&clause);
 
-                cnf.clauses.push(clause);
+                let weight = best_clique.len();
+                cnf.push_clause(clause, weight);
             }
 
             cnf.to_export_format()
         }
-        _ => vec![vec![]],
+        _ => (vec![vec![]], vec![]),
     };
 
     Ok((model, clique_sizes))

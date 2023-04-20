@@ -1,4 +1,7 @@
-use std::{collections::{HashMap, HashSet}, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
 
 use rand::{rngs::StdRng, Rng};
 
@@ -23,7 +26,11 @@ pub struct Graph {
 
 impl fmt::Display for Graph {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Graph: ({} vertices, {} edges)", self.n_vertex, self.n_edges)?;
+        writeln!(
+            f,
+            "Graph: ({} vertices, {} edges)",
+            self.n_vertex, self.n_edges
+        )?;
         for i in 0..self.n_vertex {
             for j in 0..self.n_vertex {
                 if let Some(clause_values) = &self.adj_mtx[i][j] {

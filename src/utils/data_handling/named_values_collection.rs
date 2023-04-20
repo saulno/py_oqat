@@ -70,12 +70,18 @@ impl SetOperationsTrait for NamedValuesCollection {
                     current_values.union(other_values).cloned().collect();
                 result.insert(column_name.clone(), (data_type.clone(), unified_values));
             } else {
-                result.insert(column_name.clone(), (data_type.clone(), current_values.clone()));
+                result.insert(
+                    column_name.clone(),
+                    (data_type.clone(), current_values.clone()),
+                );
             }
         }
         for (column_name, (data_type, other_values)) in other.iter() {
             if !result.contains_key(column_name) {
-                result.insert(column_name.clone(), (data_type.clone(), other_values.clone()));
+                result.insert(
+                    column_name.clone(),
+                    (data_type.clone(), other_values.clone()),
+                );
             }
         }
 
@@ -112,7 +118,10 @@ impl SetOperationsTrait for NamedValuesCollection {
                     current_values.difference(other_values).cloned().collect();
                 result.insert(column_name.clone(), (data_type.clone(), subtracted_values));
             } else {
-                result.insert(column_name.clone(), (data_type.clone(), current_values.clone()));
+                result.insert(
+                    column_name.clone(),
+                    (data_type.clone(), current_values.clone()),
+                );
             }
         }
         for (column_name, (data_type, _current_values)) in other.iter() {
