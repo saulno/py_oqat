@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use rand::Rng;
 
 use super::aco_parameters::ACOParameters;
-use crate::utils::data_handling::named_values_set_list::SetOperationsTrait;
+use crate::utils::data_handling::named_values_collection::SetOperationsTrait;
 
 pub trait ACO {
     fn set_initial_pheromone_trails(&mut self, p: &ACOParameters);
@@ -112,7 +112,7 @@ pub trait ACO {
                         &k_clique,
                     );
                     let new_v_is_semantically_valid =
-                        self.candidate_is_semantically_valid(&p, &new_v, &k_clique);
+                        self.candidate_is_semantically_valid(p, &new_v, &k_clique);
                     if new_v_is_semantically_valid {
                         // println!("new_v: {}, current_clique: {:?}", new_v, &k_clique);
                         let new_v_candidates = p.graph.get_neighbor_candidates(new_v);
@@ -131,8 +131,6 @@ pub trait ACO {
 
             global_best = Self::choose_best_clique(p, &global_best, &gen_best);
             self.update_pheromone_trail(p, &global_best, &gen_best);
-
-            // println!("Generation {} |{}| -> {:?}", _gen, global_best.len(), global_best);
         }
 
         global_best
@@ -149,24 +147,18 @@ pub trait ACO {
         // check if new cliques clause is complete
         let mut new_clique = current_clique.clone();
         new_clique.insert(*candidate);
-        let new_clique_clause = p.graph.get_clique_clause(new_clique);
+        let new_clique_clause = p.graph.get_clique_clause(&new_clique);
+
         // loop every positive element
-        // println!("Trying to add {} to {:?} -> {}", candidate, current_clique, &new_clique_clause);
         for positive in &p.graph.positive_dataset {
             let mut is_valid_one_positive = false;
             let intersect = new_clique_clause.intersection(&positive.attributes);
-            // println!("  - Positive: {} -> {}", positive, &intersect);
-            for i in intersect {
+            for (_, (_, i)) in intersect {
                 is_valid_one_positive = is_valid_one_positive || !i.is_empty();
-                // println!("    - {} {} -> {}", is_valid_one_positive, i, !i.is_empty());
             }
 
             is_valid = is_valid && is_valid_one_positive;
         }
-        // println!(
-        //     "Tryed to add {} to {:?} -> {} {}",
-        //     candidate, current_clique, &new_clique_clause, is_valid
-        // );
 
         is_valid
     }
