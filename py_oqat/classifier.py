@@ -1,12 +1,13 @@
-from abc import ABC, abstractmethod
-import random
 import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import KBinsDiscretizer
 
-from config_algorithms import Config
 from simple_oqat import oqat_with_aco
+
+from .config_algorithms import Config
+from .oqat_model import OQATModel
+from .selector import Selector
 
 
 class OQATClassifier():
@@ -199,119 +200,7 @@ class OQATClassifier():
         
         return selectors
 
-class OQATModel():
-    def __init__(self, model: list[list[tuple[str, str, float]]]):
-        self.model = ConjunctiveClause.from_list_disjunctive_clauses(model)
-    
-    def predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        return self.model.predict(X, column_names)
-    
-    def fast_predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        numeric = self.model.fast_predict(X, column_names)
-        return numeric == np.ones(len(numeric))
-    
-    def precision_predict(self, X: list[list[float]], column_names: list[str], cnf_weights: list[int]) -> list[float]:
-        return self.model.precision_predict(X, column_names, cnf_weights)
-    
-    def __repr__(self):
-        return str(self.model)
 
 
-class Clause(ABC):
-    @abstractmethod
-    def predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        pass
 
-    @abstractmethod
-    def fast_predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        pass
 
-    @abstractmethod
-    def __repr__(self):
-        pass
-
-class Selector(Clause):
-    def __init__(self, column_name: str, value: float, value_2: float = None, operator: str = None):
-        self.column_name = column_name
-        if value_2 is None:
-            self.operator = operator
-            self.operator_function = lambda x, y: x == y if operator == "=" else x < y if operator == "<" else x >= y
-            self.value = [value]
-            self.is_interval = False
-        elif value == -np.inf:
-            self.operator = "<"
-            self.operator_function = lambda x, y: x < y 
-            self.value = [value_2]
-            self.is_interval = False
-        elif value_2 == np.inf:
-            self.operator = ">="
-            self.operator_function = lambda x, y: x >= y
-            self.value = [value]
-            self.is_interval = False
-        else:
-            self.operator = [">=", "<"]
-            self.operator_function = lambda x, v1, v2: x >= v1 and x < v2
-            self.value = [value, value_2]
-            self.is_interval = True
-
-    def predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        column_index = column_names.index(self.column_name)
-        return [self.operator_function(X[i][column_index], *self.value) for i in range(len(X))]
-
-    def fast_predict(self, X: list[list[float]], column_names: list[str]) -> list[float]:
-        column_index = column_names.index(self.column_name)
-        arr = np.array([1 if self.operator_function(X[i][column_index], *self.value) else 0 for i in range(len(X))])
-        return arr
-
-    def __repr__(self):
-        if self.is_interval:
-            return f"[{self.value[0]:.2f}{self.operator[0]}{self.column_name}{self.operator[1]}{self.value[1]:.2f}]"
-        
-        return f"[{self.column_name}{self.operator}{self.value[0]:.2f}]"
-
-class DisjunctiveClause(Clause):
-    def __init__(self, clauses: list[Clause]):
-        self.clauses = clauses
-
-    def from_list_selectors(clauses: list[tuple[str, str, float]]) -> 'DisjunctiveClause':
-        return DisjunctiveClause([Selector(clause[0], clause[2], operator=clause[1]) for clause in clauses])
-
-    def predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        return [any([clause.predict(X, column_names)[i] for clause in self.clauses]) for i in range(len(X))]
-        # return [any([clause.predict(X, column_names) for clause in self.clauses]) for i in range(len(X))]
-    
-    def fast_predict(self, X: list[list[float]], column_names: list[str]) -> list[float]:
-        sum = np.zeros(len(X))
-        for clause in self.clauses:
-            sum += clause.fast_predict(X, column_names)
-        
-        # maximum value is 1
-        return np.minimum(sum, 1)
-
-    def __repr__(self):
-        return f"({' ∨ '.join([str(clause) for clause in self.clauses])})"
-    
-class ConjunctiveClause(Clause):
-    def __init__(self, clauses: list[Clause]):
-        self.clauses = clauses
-
-    def from_list_disjunctive_clauses(clauses: list[list[tuple[str, str, float]]]) -> 'ConjunctiveClause':
-        return ConjunctiveClause([DisjunctiveClause.from_list_selectors(clause) for clause in clauses])
-
-    def predict(self, X: list[list[float]], column_names: list[str]) -> list[bool]:
-        return [all([clause.predict(X, column_names)[i] for clause in self.clauses]) for i in range(len(X))]
-    
-    def fast_predict(self, X: list[list[float]], column_names: list[str]) -> list[float]:
-        prod = np.ones(len(X))
-        for clause in self.clauses:
-            prod *= clause.fast_predict(X, column_names)
-        return prod
-    
-    def precision_predict(self, X: list[list[float]], column_names: list[str], cnf_weights: list[int]) -> list[float]:
-        sum = np.zeros(len(X))
-        for clause_idx in range(len(self.clauses)):
-            sum += cnf_weights[clause_idx] * self.clauses[clause_idx].fast_predict(X, column_names)
-        return sum
-
-    def __repr__(self):
-        return f"({' ∧ '.join([str(clause) for clause in self.clauses])})"
