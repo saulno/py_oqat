@@ -38,7 +38,7 @@ class OQATClassifier():
             self.classes.append(lc)
 
 
-    def fit(self, X: list[list[float]], y: list[bool], column_names: list[str], column_types: list[str],n_discrete_bins: int = 0):
+    def fit(self, X: list[list[float]], y: list[bool], column_names: list[str], column_types: list[str], n_discrete_bins: int = 1, learn_classes: list[int] = None):
         # Create a subset for validating the quality of the model
         X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
         self.X_train, self.y_train = X_train, y_train
@@ -46,45 +46,47 @@ class OQATClassifier():
 
         # Discretize numerical columns
         continuous_columns_idx = [i for i in range(len(column_types)) if column_types[i] == "num"]
-        continuous_columns = X_train[:, continuous_columns_idx]
-        est = KBinsDiscretizer(n_bins=n_discrete_bins, encode='ordinal', strategy='kmeans')
-        est.fit(continuous_columns)
-        X_train[:, continuous_columns_idx] = est.transform(continuous_columns)
-        est_bin_edges = est.bin_edges_
-        self.discretizer = est
+        if len(continuous_columns_idx) > 0:
+            continuous_columns = X_train[:, continuous_columns_idx]
+            est = KBinsDiscretizer(n_bins=n_discrete_bins, encode='ordinal', strategy='kmeans')
+            est.fit(continuous_columns)
+            X_train[:, continuous_columns_idx] = est.transform(continuous_columns)
+            est_bin_edges = est.bin_edges_
+            self.discretizer = est
 
         # for every learning class in y, create a model
-        self.classes = sorted(set(y))
+        self.classes = learn_classes if not learn_classes is None else sorted(set(y))
         for learning_class in self.classes:
             model, weights = self.oqat_function[self.heuristic](X_train, y_train, learning_class, column_names, column_types, self.heuristic_config)
             model = OQATModel(model)
 
             # Transform the model for numerical columns into intervals
-            numeric_column_names = [column_name for i, column_name in enumerate(column_names) if column_types[i] == "num"]
-            disjunctive_clauses_list = model.model.clauses
-            for disjuntive_clause in disjunctive_clauses_list:
-                selectors_list = disjuntive_clause.clauses
-                for numeric_column in numeric_column_names:
-                    bins_for_numeric_column = [selector.value[0] for selector in selectors_list if selector.column_name == numeric_column]
-                    if len(bins_for_numeric_column) > 0:
-                        contiguous_bins = OQATClassifier.collect_contiguous_bins(bins_for_numeric_column)
-                        bin_edges = est_bin_edges[numeric_column_names.index(numeric_column)]
-                        new_selectors = OQATClassifier.create_interval_selectors(numeric_column, contiguous_bins, bin_edges)
-                        final_selectors = [selector for selector in disjuntive_clause.clauses if selector.column_name != numeric_column]
-                        final_selectors.extend(new_selectors)
-                        disjuntive_clause.clauses = final_selectors
+            if len(continuous_columns_idx) > 0:
+                numeric_column_names = [column_name for i, column_name in enumerate(column_names) if column_types[i] == "num"]
+                disjunctive_clauses_list = model.model.clauses
+                for disjuntive_clause in disjunctive_clauses_list:
+                    selectors_list = disjuntive_clause.clauses
+                    for numeric_column in numeric_column_names:
+                        bins_for_numeric_column = [selector.value[0] for selector in selectors_list if selector.column_name == numeric_column]
+                        if len(bins_for_numeric_column) > 0:
+                            contiguous_bins = OQATClassifier.collect_contiguous_bins(bins_for_numeric_column)
+                            bin_edges = est_bin_edges[numeric_column_names.index(numeric_column)]
+                            new_selectors = OQATClassifier.create_interval_selectors(numeric_column, contiguous_bins, bin_edges)
+                            final_selectors = [selector for selector in disjuntive_clause.clauses if selector.column_name != numeric_column]
+                            final_selectors.extend(new_selectors)
+                            disjuntive_clause.clauses = final_selectors
 
             self.model[learning_class] = {"oqat_model": model}
             self.model[learning_class]["cnf_weights"] = weights
             self.model[learning_class]["cnf_weights_norm"] = [w / sum(weights) for w in weights]
-            print("Model for class", learning_class, "created")
+            # print("Model for class", learning_class, "created")
 
             y_pred_val = model.fast_predict(X_val, column_names)
             y_real_val = [learning_class == y_val[i] for i in range(len(y_val))]
             score = sum([1 for i in range(len(y_pred_val)) if y_pred_val[i] == y_real_val[i]]) / len(y_pred_val)
             self.model[learning_class]["score"] = score
 
-            print("Score:", score)
+            # print("Score:", score)
     
     def predict(self, X: list[list[float]], column_names: list[str]) -> list[set[float]]:
         predictions = [set() for _ in range(len(X))]
@@ -139,6 +141,9 @@ class OQATClassifier():
         Calculates the disimilarity between a vector and a matrix (set of vectors).
         """
         continuous_columns_idx = [i for i in range(len(self.column_types)) if self.column_types[i] == "num"]
+        if len(continuous_columns_idx) == 0:
+            return sum([self.dissimilarity(x1, x2) for x2 in X]) / len(X)
+        
         continuous_columns = [x1[i] for i in continuous_columns_idx]
         discretized_columns = self.discretizer.transform([continuous_columns])[0]
         x1_copy = x1.copy() 

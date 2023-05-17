@@ -185,7 +185,7 @@ mod tests {
             2.0, 2.0, 2.0, 2.0, 1.0, 2.0, 1.0, 1.0, 2.0, 1.0,
         ];
         let column_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
-        let column_data_types = vec!["num".to_string()];
+        let column_data_types = vec!["cat".to_string(), "cat".to_string(), "cat".to_string()];
 
         let dataset = Dataset::from_data(
             x_train,
@@ -267,11 +267,11 @@ mod tests {
 
         assert_eq!(clause.len(), 3);
         let a = clause.get("a").unwrap();
-        assert_eq!(a.0, "num");
+        assert_eq!(a.0, "cat");
         assert_eq!(a.1.len(), 1);
         assert!(a.1.contains(&OrderedFloat(1.0)));
         let b = clause.get("b").unwrap();
-        assert_eq!(b.0, "num");
+        assert_eq!(b.0, "cat");
         assert_eq!(b.1.len(), 0);
         let c = clause.get("c").unwrap();
         assert_eq!(c.0, "cat");
@@ -287,12 +287,12 @@ mod tests {
 
         assert_eq!(values.len(), 3);
         let a = values.get("a").unwrap();
-        assert_eq!(a.0, "num");
+        assert_eq!(a.0, "cat");
         assert_eq!(a.1.len(), 1);
         assert!(a.1.contains(&OrderedFloat(0.0)));
 
         let b = values.get("b").unwrap();
-        assert_eq!(b.0, "num");
+        assert_eq!(b.0, "cat");
         assert_eq!(b.1.len(), 1);
         assert!(b.1.contains(&OrderedFloat(2.0)));
 
@@ -345,11 +345,11 @@ mod tests {
         assert!(exists_clause_for_all_positive);
         assert_eq!(clause.len(), 3);
         let a = clause.get("a").unwrap();
-        assert_eq!(a.0, "num");
+        assert_eq!(a.0, "cat");
         assert_eq!(a.1.len(), 1);
         assert!(a.1.contains(&OrderedFloat(1.0)));
         let b = clause.get("b").unwrap();
-        assert_eq!(b.0, "num");
+        assert_eq!(b.0, "cat");
         assert_eq!(b.1.len(), 2);
         assert!(b.1.contains(&OrderedFloat(0.0)));
         assert!(b.1.contains(&OrderedFloat(1.0)));
